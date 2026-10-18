@@ -1,4 +1,3 @@
-
 plugins {
     id("com.android.application")
 }
@@ -11,7 +10,12 @@ android {
         applicationId = "com.pathlis.offline"
         minSdk = 23
         targetSdk = 35
-        versionCode = 1
-        versionName = "1.0"
+        versionCode = 2
+        versionName = "1.1"
     }
 }
+
+dependencies {
+    implementation("androidx.core:core:1.15.0")
+}
+
