@@ -1,187 +1,257 @@
-
 package com.pathlis.offline;
-
-import android.os.Handler;
-import android.os.Looper;
 
 import org.json.JSONArray;
 import org.json.JSONObject;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-
-import okhttp3.Call;
-import okhttp3.Callback;
-import okhttp3.HttpUrl;
-import okhttp3.MediaType;
-import okhttp3.OkHttpClient;
-import okhttp3.Request;
-import okhttp3.RequestBody;
-import okhttp3.Response;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import java.nio.charset.StandardCharsets;
 
 public final class SupabaseClient {
 
-    private static final String SUPABASE_URL =
+    public static final String BASE_URL =
             "https://cgtlwgpjmfnovquoboxm.supabase.co";
 
-    private static final String API_KEY =
+    public static final String PUBLISHABLE_KEY =
             "sb_publishable_1ZsZ00a9yPfqyQu3TBT0zw_NS8MRtv-";
 
-    private static final OkHttpClient CLIENT = new OkHttpClient();
-    private static final Handler MAIN = new Handler(Looper.getMainLooper());
+    public String accessToken;
+    public String userId;
+    public String labId;
+    public String role;
+    public String fullName;
 
-    private SupabaseClient() {}
+    private JSONObject request(
+            String method,
+            String path,
+            JSONObject body,
+            boolean authRequired,
+            String prefer
+    ) throws Exception {
 
-    public static class Profile {
-        public final String userId;
-        public final String labId;
-        public final String fullName;
-        public final String role;
-        public final String accessToken;
+        URL url = new URL(BASE_URL + path);
+        HttpURLConnection connection =
+                (HttpURLConnection) url.openConnection();
 
-        Profile(String userId, String labId, String fullName,
-                String role, String accessToken) {
-            this.userId = userId;
-            this.labId = labId;
-            this.fullName = fullName;
-            this.role = role;
-            this.accessToken = accessToken;
-        }
-    }
+        connection.setRequestMethod(method);
+        connection.setConnectTimeout(12000);
+        connection.setReadTimeout(12000);
+        connection.setRequestProperty("apikey", PUBLISHABLE_KEY);
+        connection.setRequestProperty("Accept", "application/json");
+        connection.setRequestProperty("Content-Type", "application/json");
+        connection.setRequestProperty("Accept-Profile", "public");
+        connection.setRequestProperty("Content-Profile", "public");
 
-    public interface LoginCallback {
-        void onSuccess(Profile profile);
-        void onError(String message);
-    }
-
-    public static void login(String email, String password,
-                             LoginCallback callback) {
-        try {
-            JSONObject payload = new JSONObject();
-            payload.put("email", email.trim());
-            payload.put("password", password);
-
-            RequestBody body = RequestBody.create(
-                    payload.toString(),
-                    MediaType.parse("application/json; charset=utf-8"));
-
-            Request request = new Request.Builder()
-                    .url(SUPABASE_URL + "/auth/v1/token?grant_type=password")
-                    .addHeader("apikey", API_KEY)
-                    .addHeader("Content-Type", "application/json")
-                    .post(body)
-                    .build();
-
-            CLIENT.newCall(request).enqueue(new Callback() {
-                @Override
-                public void onFailure(Call call, IOException e) {
-                    error(callback,
-                            "Network error. Internet check karke dobara try karo.");
-                }
-
-                @Override
-                public void onResponse(Call call, Response response)
-                        throws IOException {
-                    String responseText = response.body() != null
-                            ? response.body().string() : "";
-
-                    if (!response.isSuccessful()) {
-                        error(callback,
-                                "Login failed. Email/password check karo.");
-                        return;
-                    }
-
-                    try {
-                        JSONObject auth = new JSONObject(responseText);
-                        String token = auth.getString("access_token");
-                        String userId = auth.getJSONObject("user")
-                                .getString("id");
-
-                        fetchProfile(userId, token, callback);
-                    } catch (Exception e) {
-                        error(callback, "Login response samajh nahi aaya.");
-                    }
-                }
-            });
-        } catch (Exception e) {
-            error(callback, "Login request create nahi ho saki.");
-        }
-    }
-
-    private static void fetchProfile(String userId, String token,
-                                     LoginCallback callback) {
-        HttpUrl parsed = HttpUrl.parse(SUPABASE_URL + "/rest/v1/profiles");
-        if (parsed == null) {
-            error(callback, "Supabase URL invalid hai.");
-            return;
-        }
-
-        HttpUrl url = parsed.newBuilder()
-                .addQueryParameter("id", "eq." + userId)
-                .addQueryParameter("select", "id,lab_id,full_name,role")
-                .build();
-
-        Request request = new Request.Builder()
-                .url(url)
-                .addHeader("apikey", API_KEY)
-                .addHeader("Authorization", "Bearer " + token)
-                .get()
-                .build();
-
-        CLIENT.newCall(request).enqueue(new Callback() {
-            @Override
-            public void onFailure(Call call, IOException e) {
-                error(callback, "Profile load nahi hui. Internet check karo.");
+        if (authRequired) {
+            if (accessToken == null || accessToken.isEmpty()) {
+                connection.disconnect();
+                throw new IOException("Please login again.");
             }
+            connection.setRequestProperty(
+                    "Authorization", "Bearer " + accessToken);
+        }
 
-            @Override
-            public void onResponse(Call call, Response response)
-                    throws IOException {
-                String responseText = response.body() != null
-                        ? response.body().string() : "";
+        if (prefer != null) {
+            connection.setRequestProperty("Prefer", prefer);
+        }
 
-                if (!response.isSuccessful()) {
-                    error(callback,
-                            "Profile access nahi hua. Supabase RLS policies check karo.");
-                    return;
-                }
-
-                try {
-                    JSONArray rows = new JSONArray(responseText);
-                    if (rows.length() == 0) {
-                        error(callback, "Is account ka lab profile nahi mila.");
-                        return;
-                    }
-
-                    JSONObject row = rows.getJSONObject(0);
-                    String role = row.optString("role", "");
-                    String labId = row.optString("lab_id", "");
-
-                    if (!"admin".equals(role) && !"staff".equals(role)) {
-                        error(callback, "Invalid account role.");
-                        return;
-                    }
-
-                    if (labId.isEmpty() || "null".equals(labId)) {
-                        error(callback, "Account kisi lab se linked nahi hai.");
-                        return;
-                    }
-
-                    Profile profile = new Profile(
-                            userId,
-                            labId,
-                            row.optString("full_name", ""),
-                            role,
-                            token);
-
-                    MAIN.post(() -> callback.onSuccess(profile));
-                } catch (Exception e) {
-                    error(callback, "Profile response read nahi ho saka.");
-                }
+        if (body != null) {
+            connection.setDoOutput(true);
+            try (OutputStream out = connection.getOutputStream()) {
+                out.write(body.toString().getBytes(StandardCharsets.UTF_8));
             }
-        });
+        }
+
+        int code = connection.getResponseCode();
+        InputStream input = (code >= 200 && code < 300)
+                ? connection.getInputStream()
+                : connection.getErrorStream();
+
+        ByteArrayOutputStream buffer = new ByteArrayOutputStream();
+
+        if (input != null) {
+            byte[] bytes = new byte[4096];
+            int count;
+            while ((count = input.read(bytes)) != -1) {
+                buffer.write(bytes, 0, count);
+            }
+            input.close();
+        }
+
+        String response = new String(
+                buffer.toByteArray(), StandardCharsets.UTF_8);
+
+        connection.disconnect();
+
+        if (code < 200 || code >= 300) {
+            throw new IOException(
+                    "Supabase HTTP " + code + ": " + response);
+        }
+
+        if (response.trim().isEmpty()) {
+            return new JSONObject();
+        }
+
+        if (response.trim().startsWith("[")) {
+            JSONObject wrapper = new JSONObject();
+            wrapper.put("data", new JSONArray(response));
+            return wrapper;
+        }
+
+        return new JSONObject(response);
     }
 
-    private static void error(LoginCallback callback, String message) {
-        MAIN.post(() -> callback.onError(message));
+    public void login(String email, String password) throws Exception {
+        JSONObject payload = new JSONObject();
+        payload.put("email", email.trim());
+        payload.put("password", password);
+
+        JSONObject auth = request(
+                "POST",
+                "/auth/v1/token?grant_type=password",
+                payload,
+                false,
+                null
+        );
+
+        accessToken = auth.getString("access_token");
+        userId = auth.getJSONObject("user").getString("id");
+
+        JSONObject profileResponse = request(
+                "GET",
+                "/rest/v1/profiles?id=eq." + userId
+                        + "&select=id,lab_id,role,full_name",
+                null,
+                true,
+                null
+        );
+
+        JSONArray profiles = profileResponse.optJSONArray("data");
+
+        if (profiles == null || profiles.length() == 0) {
+            clearSession();
+            throw new IOException(
+                    "Lab profile missing. Check public.profiles.");
+        }
+
+        JSONObject profile = profiles.getJSONObject(0);
+
+        labId = profile.optString("lab_id", "");
+        role = profile.optString("role", "");
+        fullName = profile.optString("full_name", email);
+
+        if (labId.isEmpty() || "null".equals(labId)) {
+            clearSession();
+            throw new IOException("Account is not linked to a lab.");
+        }
+
+        if (!"admin".equals(role) && !"staff".equals(role)) {
+            clearSession();
+            throw new IOException("Invalid account role.");
+        }
+    }
+
+    public void clearSession() {
+        accessToken = null;
+        userId = null;
+        labId = null;
+        role = null;
+        fullName = null;
+    }
+
+    public JSONArray getPatients() throws Exception {
+        JSONObject response = request(
+                "GET",
+                "/rest/v1/patients?lab_id=eq." + labId
+                        + "&select=id,lab_id,name,age,sex,phone,doctor,created_at,created_by"
+                        + "&order=created_at.desc",
+                null,
+                true,
+                null
+        );
+
+        return response.optJSONArray("data");
+    }
+
+    public JSONObject insertPatient(
+            String name,
+            String age,
+            String sex,
+            String phone,
+            String doctor
+    ) throws Exception {
+
+        JSONObject payload = new JSONObject();
+        payload.put("lab_id", labId);
+        payload.put("name", name);
+        payload.put("age", age);
+        payload.put("sex", sex);
+        payload.put("phone", phone);
+        payload.put("doctor", doctor);
+        payload.put("created_by", userId);
+
+        JSONObject response = request(
+                "POST",
+                "/rest/v1/patients?select=*",
+                payload,
+                true,
+                "return=representation"
+        );
+
+        JSONArray rows = response.optJSONArray("data");
+
+        if (rows == null || rows.length() == 0) {
+            throw new IOException("Patient was not returned by Supabase.");
+        }
+
+        return rows.getJSONObject(0);
+    }
+
+    public JSONArray getReports() throws Exception {
+        JSONObject response = request(
+                "GET",
+                "/rest/v1/reports?lab_id=eq." + labId
+                        + "&select=id,lab_id,patient_id,test,results,created_at,created_by"
+                        + "&order=created_at.desc",
+                null,
+                true,
+                null
+        );
+
+        return response.optJSONArray("data");
+    }
+
+    public JSONObject insertReport(
+            String patientId,
+            String test,
+            JSONObject results
+    ) throws Exception {
+
+        JSONObject payload = new JSONObject();
+        payload.put("lab_id", labId);
+        payload.put("patient_id", patientId);
+        payload.put("test", test);
+        payload.put("results", results);
+        payload.put("created_by", userId);
+
+        JSONObject response = request(
+                "POST",
+                "/rest/v1/reports?select=*",
+                payload,
+                true,
+                "return=representation"
+        );
+
+        JSONArray rows = response.optJSONArray("data");
+
+        if (rows == null || rows.length() == 0) {
+            throw new IOException("Report was not returned by Supabase.");
+        }
+
+        return rows.getJSONObject(0);
     }
 }
