@@ -26,8 +26,62 @@ public class MainActivity extends Activity {
     private final Map<String,Param[]> tests = new LinkedHashMap<>();
 
     @Override public void onCreate(Bundle b){super.onCreate(b); StrictMode.setThreadPolicy(new StrictMode.ThreadPolicy.Builder().permitAll().build()); db=new DB(this); cloud=new SupabaseClient(); initTests(); loginScreen();}
-    private void loginScreen(){base("Path LIS — Secure Login");add(text("Online laboratory system • Shared cloud database",14,dark,false));EditText email=field("Staff email");email.setInputType( android.text.InputType.TYPE_CLASS_TEXT | android.text.InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS);EditText pass=field("Password");pass.setInputType(android.text.InputType.TYPE_CLASS_TEXT | android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD);add(email);add(pass);add(btn("Login",()->{String em=email.getText().toString().trim(),pw=pass.getText().toString();if(em.isEmpty()||pw.isEmpty()){toast("Enter email and password");return;}try{cloud.login(em,pw);getSharedPreferences("auth",0).edit().putString("email",em).apply();home();}catch(Exception ex){toast("Login failed: "+ex.getMessage());}}));add(text("Use the email/password of the Auth user already linked to your lab profile. Internet is required.",12,dark,false));}
-    private boolean isAdmin(){return cloud!=null && "admin".equals(cloud.role);}
+    
+private void loginScreen() {
+    base("Path LIS — Secure Login");
+
+    // Vertically centre the login content
+    root.setGravity(Gravity.CENTER_VERTICAL);
+
+    add(text("Online laboratory system • Shared cloud database",
+            14, dark, false));
+
+    EditText email = field("Staff email");
+    email.setInputType(
+            android.text.InputType.TYPE_CLASS_TEXT
+                    | android.text.InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS
+    );
+
+    EditText pass = field("Password");
+    pass.setInputType(
+            android.text.InputType.TYPE_CLASS_TEXT
+                    | android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD
+    );
+
+    add(email);
+    add(pass);
+
+    add(btn("Login", () -> {
+        String em = email.getText().toString().trim();
+        String pw = pass.getText().toString();
+
+        if (em.isEmpty() || pw.isEmpty()) {
+            toast("Enter email and password");
+            return;
+        }
+
+        try {
+            cloud.login(em, pw);
+            getSharedPreferences("auth", 0)
+                    .edit()
+                    .putString("email", em)
+                    .apply();
+            home();
+        } catch (Exception ex) {
+            toast("Login failed: " + ex.getMessage());
+        }
+    }));
+
+    add(text(
+            "Use the email/password of the Auth user already linked to your lab profile. Internet is required.",
+            12, dark, false
+    ));
+}
+
+private boolean isAdmin() {
+    return cloud != null && "admin".equals(cloud.role);
+}
+    
     private void syncPatientsFromCloud(){try{JSONArray arr=cloud.getPatients();if(arr==null)return;SQLiteDatabase d=db.getWritableDatabase();for(int i=0;i<arr.length();i++){JSONObject o=arr.getJSONObject(i);String rid=o.getString("id");ContentValues cv=new ContentValues();cv.put("remote_id",rid);cv.put("lab_id",o.optString("lab_id"));cv.put("name",o.optString("name"));cv.put("age",o.optString("age"));cv.put("sex",o.optString("sex"));cv.put("phone",o.optString("phone"));cv.put("doctor",o.optString("doctor"));cv.put("date",o.optString("created_at"));Cursor old=d.rawQuery("SELECT id FROM patients WHERE remote_id=?",new String[]{rid});if(old.moveToFirst())d.update("patients",cv,"id=?",new String[]{String.valueOf(old.getLong(0))});else d.insert("patients",null,cv);old.close();}}catch(Exception e){toast("Cloud patient sync failed: "+e.getMessage());}}
     private void syncReportsFromCloud(){try{JSONArray arr=cloud.getReports();if(arr==null)return;SQLiteDatabase d=db.getWritableDatabase();for(int i=0;i<arr.length();i++){JSONObject o=arr.getJSONObject(i);String rid=o.getString("id"),patientRemote=o.getString("patient_id");Cursor pc=d.rawQuery("SELECT id FROM patients WHERE remote_id=?",new String[]{patientRemote});if(!pc.moveToFirst()){pc.close();continue;}long localPatient=pc.getLong(0);pc.close();ContentValues cv=new ContentValues();cv.put("remote_id",rid);cv.put("lab_id",o.optString("lab_id"));cv.put("patient_id",localPatient);cv.put("test",o.optString("test"));Object results=o.opt("results");cv.put("results",results==null?"":results.toString());cv.put("created",o.optString("created_at"));Cursor old=d.rawQuery("SELECT id FROM reports WHERE remote_id=?",new String[]{rid});if(old.moveToFirst())d.update("reports",cv,"id=?",new String[]{String.valueOf(old.getLong(0))});else d.insert("reports",null,cv);old.close();}}catch(Exception e){toast("Cloud report sync failed: "+e.getMessage());}}
     private void initTests(){
@@ -112,7 +166,30 @@ public class MainActivity extends Activity {
     private int dp(float n){return (int)(n*getResources().getDisplayMetrics().density);}
     private TextView text(String s,int size,int color,boolean bold){TextView t=new TextView(this);t.setText(s);t.setTextSize(size);t.setTextColor(color);if(bold)t.setTypeface(null,1);t.setPadding(dp(4),dp(6),dp(4),dp(6));return t;}
     private Button btn(String s,Runnable r){Button b=new Button(this);b.setText(s);b.setAllCaps(false);b.setOnClickListener(v->r.run());return b;}
-    private void base(String title){root=new LinearLayout(this);root.setOrientation(LinearLayout.VERTICAL);root.setBackgroundColor(pale);root.setPadding(dp(18),dp(16),dp(18),dp(16)); ScrollView sc=new ScrollView(this);sc.addView(root); LinearLayout page=new LinearLayout(this);page.setOrientation(LinearLayout.VERTICAL); TextView head=text(title,24,purple,true);page.addView(head);page.addView(sc);setContentView(page);}
+    
+private void base(String title) {
+    root = new LinearLayout(this);
+    root.setOrientation(LinearLayout.VERTICAL);
+    root.setBackgroundColor(pale);
+    root.setPadding(dp(18), dp(16), dp(18), dp(16));
+
+    ScrollView sc = new ScrollView(this);
+    sc.setFillViewport(true);
+    sc.setBackgroundColor(pale);
+    sc.addView(root, new ScrollView.LayoutParams(-1, -2));
+
+    LinearLayout page = new LinearLayout(this);
+    page.setOrientation(LinearLayout.VERTICAL);
+    page.setBackgroundColor(pale);
+
+    TextView head = text(title, 24, purple, true);
+    page.addView(head, new LinearLayout.LayoutParams(-1, -2));
+
+    page.addView(sc, new LinearLayout.LayoutParams(-1, 0, 1f));
+
+    setContentView(page);
+}
+    
     private void add(View v){root.addView(v,new LinearLayout.LayoutParams(-1,-2));}
     private void home(){base("Path LIS");ImageView logo=new ImageView(this);logo.setImageResource(R.drawable.pathlis_logo);logo.setContentDescription("Path LIS logo");logo.setScaleType(ImageView.ScaleType.FIT_CENTER);LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(dp(92),dp(92));lp.gravity=Gravity.CENTER_HORIZONTAL;root.addView(logo,lp);add(text("Online Laboratory Information System",15,dark,false));add(text("Signed in: "+cloud.fullName+" • Role: "+cloud.role,13,dark,false));add(btn("Logout",()->{cloud=new SupabaseClient();loginScreen();}));add(btn("＋  Patient Registration",this::registration));add(btn("Patients & Create Report",()->{syncPatientsFromCloud();patients();}));add(btn("Report History",this::history));if(isAdmin())add(btn("Lab Settings",this::settings));add(text("Reference ranges are common adult guides only. Confirm your lab's validated ranges before issuing reports.",12,Color.DKGRAY,false));}
     private EditText field(String hint){EditText e=new EditText(this);e.setSingleLine(true);e.setHint(hint);e.setTextSize(16);return e;}
