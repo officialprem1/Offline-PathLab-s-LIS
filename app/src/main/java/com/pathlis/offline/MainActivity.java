@@ -23,7 +23,7 @@ public class MainActivity extends Activity {
     static class Param { String name, unit; double low, high; Param(String n,String u,double l,double h){name=n;unit=u;low=l;high=h;} }
     private final Map<String,Param[]> tests = new LinkedHashMap<>();
 
-    @Override public void onCreate(Bundle b){super.onCreate(b); db=new DB(this); initTests(); home();}
+    @Override public void onCreate(Bundle b){super.onCreate(b); db=new DB(this); initTests(); cloud=new SupabaseClient(); loginScreen();}
     private void initTests(){
         // Common adult reference intervals only. Verify against the laboratory method,
         // analyzer insert, patient age/sex and local approved ranges before clinical use.
