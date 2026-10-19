@@ -34,7 +34,7 @@ public class MainActivity extends Activity {
         // Common adult reference intervals only. Verify against the laboratory method,
         // analyzer insert, patient age/sex and local approved ranges before clinical use.
         tests.put("CBC",new Param[]{
-            new Param("Hemoglobin","g/dL",12.0,17.5),
+            new Param("Hemoglobin","g/dL",12.0,17.5),i
             new Param("Total WBC Count","/µL",4000,11000),
             new Param("RBC Count","million/µL",4.0,6.0),
             new Param("Hematocrit / PCV","%",36,52),
