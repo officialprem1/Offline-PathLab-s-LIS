@@ -34,7 +34,7 @@ public class MainActivity extends Activity {
         // Common adult reference intervals only. Verify against the laboratory method,
         // analyzer insert, patient age/sex and local approved ranges before clinical use.
         tests.put("CBC",new Param[]{
-            new Param("Hemoglobin","g/dL",12.0,17.5),i
+            new Param("Hemoglobin","g/dL",12.0,17.5),
             new Param("Total WBC Count","/µL",4000,11000),
             new Param("RBC Count","million/µL",4.0,6.0),
             new Param("Hematocrit / PCV","%",36,52),
@@ -55,9 +55,9 @@ public class MainActivity extends Activity {
             new Param("Total Bilirubin","mg/dL",0.2,1.2),
             new Param("Direct Bilirubin","mg/dL",0.0,0.3),
             new Param("Indirect Bilirubin","mg/dL",0.1,0.9),
-            new Param("AST / SGOT","U/L",5,40),
-            new Param("ALT / SGPT","U/L",7,56),
-            new Param("Alkaline Phosphatase","U/L",44,147),
+            new Param("AST / SGOT","U/L",5,35),
+            new Param("ALT / SGPT","U/L",7,40),
+            new Param("Alkaline Phosphatase","U/L",70,247),
             new Param("GGT","U/L",9,48),
             new Param("Total Protein","g/dL",6.0,8.3),
             new Param("Albumin","g/dL",3.5,5.0),
@@ -89,7 +89,7 @@ public class MainActivity extends Activity {
             new Param("Fasting Plasma Glucose","mg/dL",70,99),
             new Param("2-hour Post Meal Glucose","mg/dL",70,140),
             new Param("Random Plasma Glucose","mg/dL",70,200),
-            new Param("HbA1c","%",4.0,5.6)
+            new Param("HbA1c","%",4.0,6.0)
         });
         tests.put("Thyroid Profile",new Param[]{
             new Param("Total T3","ng/mL",0.8,2.0),
