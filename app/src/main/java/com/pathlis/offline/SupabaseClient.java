@@ -35,8 +35,16 @@ public final class SupabaseClient {
             conn.setRequestProperty("apikey", API_KEY);
             conn.setRequestProperty("Accept", "application/json");
             if (body != null) {
-                conn.setRequestProperty("Content-Type", "application/json; charset=utf-8");
-                conn.setDoOutput(true);
+    conn.setRequestProperty(
+        "Content-Type",
+        "application/json; charset=utf-8"
+    );
+    conn.setRequestProperty(
+        "Prefer",
+        "return=representation"
+    );
+    conn.setDoOutput(true);
+            }
             }
             if (authenticated) {
                 if (accessToken == null || accessToken.isEmpty()) throw new Exception("Please login again.");
