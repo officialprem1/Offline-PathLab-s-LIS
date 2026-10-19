@@ -8,6 +8,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 
 /** Supabase REST/Auth client using Android's built-in HttpURLConnection. */
@@ -109,20 +110,76 @@ public final class SupabaseClient {
         return new JSONArray(request("GET", path, null, true));
     }
 
-    public JSONObject insertPatient(String name, String age, String sex, String phone, String doctor) throws Exception {
-        JSONObject body = new JSONObject();
-        body.put("lab_id", labId);
-        body.put("name", name);
-        body.put("age", age);
-        body.put("sex", sex);
-        body.put("phone", phone);
-        body.put("doctor", doctor);
-        body.put("created_by", userId);
-        String response = request("POST", "/rest/v1/patients?select=*", body, true);
+    
+public JSONObject insertPatient(
+        String name,
+        String age,
+        String sex,
+        String phone,
+        String doctor
+) throws Exception {
+
+    JSONObject body = new JSONObject();
+    body.put("lab_id", labId);
+    body.put("name", name);
+    body.put("age", age);
+    body.put("sex", sex);
+    body.put("phone", phone);
+    body.put("doctor", doctor);
+    body.put("created_by", userId);
+
+    String response = request(
+            "POST",
+            "/rest/v1/patients?select=*",
+            body,
+            true
+    );
+
+    if (response != null && !response.trim().isEmpty()) {
         JSONArray rows = new JSONArray(response);
-        if (rows.length() == 0) throw new Exception("Patient save hua, lekin server ne record return nahi kiya.");
-        return rows.getJSONObject(0);
+
+        if (rows.length() > 0) {
+            return rows.getJSONObject(0);
+        }
     }
+
+    String encodedName = URLEncoder.encode(name, "UTF-8");
+    String encodedLabId = URLEncoder.encode(labId, "UTF-8");
+    String encodedUserId = URLEncoder.encode(userId, "UTF-8");
+
+    String lookupPath =
+            "/rest/v1/patients"
+            + "?lab_id=eq." + encodedLabId
+            + "&created_by=eq." + encodedUserId
+            + "&name=eq." + encodedName
+            + "&select=id,lab_id,name,age,sex,phone,doctor,created_at,created_by"
+            + "&order=created_at.desc"
+            + "&limit=1";
+
+    String lookupResponse = request(
+            "GET",
+            lookupPath,
+            null,
+            true
+    );
+
+    if (lookupResponse == null || lookupResponse.trim().isEmpty()) {
+        throw new Exception(
+                "Server response empty hai; patient record fetch nahi hua."
+        );
+    }
+
+    JSONArray foundRows = new JSONArray(lookupResponse);
+
+    if (foundRows.length() == 0) {
+        throw new Exception(
+                "Patient record fetch nahi hua. Supabase table aur permissions check karein."
+        );
+    }
+
+    return foundRows.getJSONObject(0);
+}
+    
 
     public JSONArray getReports() throws Exception {
         String path = "/rest/v1/reports?lab_id=eq." + labId + "&select=id,lab_id,patient_id,test,results,created_at,created_by&order=created_at.desc";
