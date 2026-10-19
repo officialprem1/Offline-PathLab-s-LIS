@@ -2,7 +2,7 @@ package com.pathlis.offline;
 
 import org.json.JSONArray;
 import org.json.JSONObject;
-
+import java.net.URLEncoder;
 import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
 import java.io.OutputStream;
