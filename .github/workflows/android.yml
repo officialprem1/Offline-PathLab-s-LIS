@@ -6,6 +6,7 @@ on:
   push:
     branches:
       - main
+      - supabase-integration
 
 permissions:
   contents: read
