@@ -1,5 +1,4 @@
 package com.pathlis.offline;
-
 import android.app.*;
 import android.os.*;
 import android.os.StrictMode;
@@ -16,7 +15,6 @@ import androidx.core.content.FileProvider;
 import java.io.*;
 import java.text.SimpleDateFormat;
 import java.util.*;
-
 public class MainActivity extends Activity {
     private final int purple = Color.rgb(105,65,180), pale = Color.rgb(248,245,255), dark = Color.rgb(40,35,50);
     private DB db; private SupabaseClient cloud; private LinearLayout root; private EditText[] reportFields; private Patient activePatient; private String activeTest="CBC"; private File pendingPdf;
@@ -24,7 +22,6 @@ public class MainActivity extends Activity {
     static class Patient { long id; String remoteId, name, age, sex, phone, doctor, date; }
     static class Param { String name, unit; double low, high; Param(String n,String u,double l,double h){name=n;unit=u;low=l;high=h;} }
     private final Map<String,Param[]> tests = new LinkedHashMap<>();
-
     @Override public void onCreate(Bundle b){super.onCreate(b); StrictMode.setThreadPolicy(new StrictMode.ThreadPolicy.Builder().permitAll().build()); db=new DB(this); cloud=new SupabaseClient(); initTests(); loginScreen();}
     private void loginScreen(){base("Path LIS — Secure Login");add(text("Online laboratory system • Shared cloud database",14,dark,false));EditText email=field("Staff email");email.setInputType( android.text.InputType.TYPE_CLASS_TEXT | android.text.InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS);EditText pass=field("Password");pass.setInputType(android.text.InputType.TYPE_CLASS_TEXT | android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD);add(email);add(pass);add(btn("Login",()->{String em=email.getText().toString().trim(),pw=pass.getText().toString();if(em.isEmpty()||pw.isEmpty()){toast("Enter email and password");return;}try{cloud.login(em,pw);getSharedPreferences("auth",0).edit().putString("email",em).apply();home();}catch(Exception ex){toast("Login failed: "+ex.getMessage());}}));add(text("Use the email/password of the Auth user already linked to your lab profile. Internet is required.",12,dark,false));}
     private boolean isAdmin(){return cloud!=null && "admin".equals(cloud.role);}
