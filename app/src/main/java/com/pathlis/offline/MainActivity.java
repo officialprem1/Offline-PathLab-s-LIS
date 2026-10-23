@@ -330,6 +330,32 @@ private void base(String title) {
     private String pref(String k,String d){return getSharedPreferences("lab",0).getString(k,d);}
     private void toast(String s){Toast.makeText(this,s,Toast.LENGTH_LONG).show();}
 
+    // Shared UI helpers used by every screen. These were missing from the supplied ZIP.
+    private TextView text(String value, float size, int color, boolean bold) {
+        TextView view = new TextView(this);
+        view.setText(value);
+        view.setTextSize(size);
+        view.setTextColor(color);
+        if (bold) view.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
+        view.setPadding(0, dp(6), 0, dp(6));
+        return view;
+    }
+
+    private Button btn(String label, Runnable action) {
+        Button button = new Button(this);
+        button.setText(label);
+        button.setAllCaps(false);
+        button.setOnClickListener(v -> { if (action != null) action.run(); });
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(-1, -2);
+        params.setMargins(0, dp(5), 0, dp(5));
+        button.setLayoutParams(params);
+        return button;
+    }
+
+    private int dp(float value) {
+        return Math.round(value * getResources().getDisplayMetrics().density);
+    }
+
     private class DB extends SQLiteOpenHelper {
         DB(Context c){super(c,"pathlis.db",null,2);}
         public void onCreate(SQLiteDatabase d){d.execSQL("CREATE TABLE patients(id INTEGER PRIMARY KEY AUTOINCREMENT,name TEXT NOT NULL,age TEXT NOT NULL,sex TEXT,phone TEXT,doctor TEXT,date TEXT,remote_id TEXT,lab_id TEXT)");d.execSQL("CREATE TABLE reports(id INTEGER PRIMARY KEY AUTOINCREMENT,patient_id INTEGER,test TEXT,results TEXT,created TEXT,pdf_path TEXT,remote_id TEXT,lab_id TEXT)");}
